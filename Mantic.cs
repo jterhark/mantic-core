@@ -313,7 +313,7 @@ namespace ManticFramework
             }
         }
 
-        public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T: class{
+        public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters){
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
             }
@@ -359,15 +359,33 @@ namespace ManticFramework
         }
 
 
-        private async Task<T> Scalar<T>(SqlCommand cmd) where T : class
+        private async Task<T> Scalar<T>(SqlCommand cmd)
         {
             using (var conn = new SqlConnection(ConnectionString))
             {
                 cmd.Connection = conn;
                 conn.Open();
 
-                return (await cmd.ExecuteScalarAsync()) as T;
+                var obj = await cmd.ExecuteScalarAsync();
+                return ConvertTo<T>(obj);
             }
+        }
+
+        private static T ConvertTo<T>(object obj)
+        {
+            if (obj == System.DBNull.Value)
+            {
+                return default(T);
+            }
+
+            var type = Nullable.GetUnderlyingType(typeof(T));
+
+            if (type != null)
+            {
+                return (T)Convert.ChangeType(obj, type);
+            }
+
+            return (T)Convert.ChangeType(obj, typeof(T));
         }
     }
 
