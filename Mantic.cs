@@ -133,6 +133,29 @@ namespace ManticFramework
 
         }
 
+        private async Task<int?> NonQuery(SqlCommand command) {
+            if (ConnectionString == null)
+            {
+                throw new ArgumentNullException("ConnectionString", "Connection string not set!");
+            }
+
+            if (command == null)
+            {
+                throw new ArgumentNullException("command", "You need a non-null sql command to query a database.");
+            }
+
+            var dt = new DataTable();
+
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                await conn.OpenAsync();
+                command.Connection = conn;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            return null;
+        }
+
         public async Task<IEnumerable<T>> Query<T>(string command, bool storedProcedure = false) where T : new()
         {
             var cmd = new SqlCommand(command);
@@ -231,7 +254,7 @@ namespace ManticFramework
             }
         }
 
-        public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure) where T:new() {
+        public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure, bool isNonQuery=false) where T:new() {
             if (IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure already registered!");
             }
@@ -244,8 +267,45 @@ namespace ManticFramework
             this._storedProcedures.Add(name,
                 new ManticStoredProcedure {
                     Mappings = procedure,
-                    ReturnType = t.FullName
+                    ReturnType = t.FullName,
+                    IsNonQuery = isNonQuery
                 });
+        }
+
+        public async void ExecuteNonQueryStoredProcedure(string name, Dictionary<string, (string, object)> parameters) {
+            if (!IsStoredProcedureRegistered(name)) {
+                throw new ArgumentException("Stored Procedure Not Registered");
+            }
+
+            var cmd = new SqlCommand(name)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            var proc = _storedProcedures[name];
+
+            if (!proc.IsNonQuery) {
+                throw new ArgumentException("Stored Procedure Marked as Having Results");
+            }
+
+            foreach (var entry in parameters)
+            {
+                var mapping = proc.Mappings[entry.Key];
+                SqlDbType? t;
+                Util.TryGetDbType(mapping.Item1, out t);
+                if (mapping.Item2.HasValue)
+                {
+                    cmd.Parameters.Add(entry.Key, t.Value, mapping.Item2.Value).Value = entry.Value;
+                }
+                else
+                {
+                    cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
+                }
+            }
+
+            await NonQuery(cmd);
+
+            return;
         }
 
         public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T:new() {
@@ -289,6 +349,8 @@ namespace ManticFramework
         public Dictionary<string, (DbType, int?)> Mappings { get; set; }
 
         public string ReturnType { get; set; }
+
+        public bool IsNonQuery { get; set; }
 
     }
 
