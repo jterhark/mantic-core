@@ -226,8 +226,8 @@ namespace ManticFramework
             using (var conn = new SqlConnection(this.ConnectionString))
             {
                 cmd.Connection = conn;
-                conn.Open();
-                cmd.ExecuteNonQuery();
+                await conn.OpenAsync();
+                await cmd.ExecuteNonQueryAsync();
             }
         }
 
