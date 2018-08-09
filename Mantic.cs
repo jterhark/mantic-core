@@ -254,7 +254,7 @@ namespace ManticFramework
             }
         }
 
-        public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure, bool isNonQuery=false) where T:new() {
+        public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure, bool isNonQuery=false, bool isScalar = false) where T:new() {
             if (IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure already registered!");
             }
@@ -268,7 +268,8 @@ namespace ManticFramework
                 new ManticStoredProcedure {
                     Mappings = procedure,
                     ReturnType = t.FullName,
-                    IsNonQuery = isNonQuery
+                    IsNonQuery = isNonQuery,
+                    IsScalar = isScalar
                 });
         }
 
@@ -288,6 +289,14 @@ namespace ManticFramework
                 throw new ArgumentException("Stored Procedure Marked as Having Results");
             }
 
+            FillSqlCommand(cmd, proc, parameters);
+
+            await NonQuery(cmd);
+
+            return;
+        }
+
+        private void FillSqlCommand(SqlCommand cmd, ManticStoredProcedure proc, Dictionary<string, object> parameters) {
             foreach (var entry in parameters)
             {
                 var mapping = proc.Mappings[entry.Key];
@@ -302,10 +311,25 @@ namespace ManticFramework
                     cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
                 }
             }
+        }
 
-            await NonQuery(cmd);
+        public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T: class{
+            if (!IsStoredProcedureRegistered(name)) {
+                throw new ArgumentException("Stored Procedure Not Registered");
+            }
 
-            return;
+            var proc = _storedProcedures[name];
+
+            if (!proc.IsScalar) {
+                throw new ArgumentException("Stored Procedure Not Registered for Scalar Result");
+            }
+
+            var cmd = new SqlCommand(name);
+
+            FillSqlCommand(cmd, proc, parameters);
+
+            return await Scalar<T>(cmd);
+
         }
 
         public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T:new() {
@@ -324,24 +348,26 @@ namespace ManticFramework
 
             var proc = _storedProcedures[name];
 
-            foreach (var entry in parameters) {
-                var mapping = proc.Mappings[entry.Key];
-                SqlDbType? t;
-                Util.TryGetDbType(mapping.Item1, out t); 
-                if (mapping.Item2.HasValue) {
-                    cmd.Parameters.Add(entry.Key, t.Value, mapping.Item2.Value).Value = entry.Value;
-                }
-                else
-                {
-                    cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
-                }
-            }
+
+            FillSqlCommand(cmd, proc, parameters);
 
             return await Query<T>(cmd);
         }
 
         public bool IsStoredProcedureRegistered(string name) {
             return _storedProcedures.ContainsKey(name);
+        }
+
+
+        private async Task<T> Scalar<T>(SqlCommand cmd) where T : class
+        {
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                cmd.Connection = conn;
+                conn.Open();
+
+                return (await cmd.ExecuteScalarAsync()) as T;
+            }
         }
     }
 
@@ -351,6 +377,8 @@ namespace ManticFramework
         public string ReturnType { get; set; }
 
         public bool IsNonQuery { get; set; }
+
+        public bool IsScalar { get; set; }
 
     }
 
