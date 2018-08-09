@@ -324,7 +324,10 @@ namespace ManticFramework
                 throw new ArgumentException("Stored Procedure Not Registered for Scalar Result");
             }
 
-            var cmd = new SqlCommand(name);
+            var cmd = new SqlCommand(name)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
             FillSqlCommand(cmd, proc, parameters);
 
