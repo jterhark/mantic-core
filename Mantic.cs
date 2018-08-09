@@ -273,7 +273,7 @@ namespace ManticFramework
                 });
         }
 
-        public async void ExecuteNonQueryStoredProcedure(string name, Dictionary<string, object> parameters) {
+        public async Task ExecuteNonQueryStoredProcedure(string name, Dictionary<string, object> parameters) {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
             }
