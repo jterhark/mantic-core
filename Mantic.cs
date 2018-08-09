@@ -14,6 +14,7 @@ namespace ManticFramework
         private Dictionary<string, string> _tableMappings;
         private Dictionary<string, string> _selectQueries;
         private Dictionary<string, string> _insertQueries;
+        private Dictionary<string, ManticStoredProcedure> _storedProcedures;
 
         private string ConnectionString { get; set; }
         
@@ -24,6 +25,7 @@ namespace ManticFramework
             _tableMappings = new Dictionary<string, string>();
             _selectQueries = new Dictionary<string, string>();
             _insertQueries = new Dictionary<string, string>();
+            _storedProcedures = new Dictionary<string, ManticStoredProcedure>();
             ConnectionString = connectionString;
         }
 
@@ -228,8 +230,67 @@ namespace ManticFramework
                 cmd.ExecuteNonQuery();
             }
         }
+
+        public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure) where T:new() {
+            if (IsStoredProcedureRegistered(name)) {
+                throw new ArgumentException("Stored Procedure already registered!");
+            }
+
+            var t = typeof(T);
+            if (!this.IsRegistered<T>(t)) {
+                this.Register<T>();
+            }
+
+            this._storedProcedures.Add(name,
+                new ManticStoredProcedure {
+                    Mappings = procedure,
+                    ReturnType = t.FullName
+                });
+        }
+
+        public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T:new() {
+            if (!IsStoredProcedureRegistered(name)) {
+                throw new ArgumentException("Stored Procedure Not Registered!");
+            }
+
+            if (!IsRegistered<T>(typeof(T))) {
+                throw new ArgumentException("Class is Not Registered!");
+            }
+
+            var cmd = new SqlCommand(name)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            var proc = _storedProcedures[name];
+
+            foreach (var entry in parameters) {
+                var mapping = proc.Mappings[entry.Key];
+                SqlDbType? t;
+                Util.TryGetDbType(mapping.Item1, out t); 
+                if (mapping.Item2.HasValue) {
+                    cmd.Parameters.Add(entry.Key, t.Value, mapping.Item2.Value).Value = entry.Value;
+                }
+                else
+                {
+                    cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
+                }
+            }
+
+            return await Query<T>(cmd);
+        }
+
+        public bool IsStoredProcedureRegistered(string name) {
+            return _storedProcedures.ContainsKey(name);
+        }
     }
 
+    internal class ManticStoredProcedure {
+        public Dictionary<string, (DbType, int?)> Mappings { get; set; }
+
+        public string ReturnType { get; set; }
+
+    }
 
     internal class Mapping
     {

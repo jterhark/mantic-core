@@ -33,6 +33,21 @@ namespace ManticFramework
         }
     }
 
+    internal static class Util
+    {
+        internal static bool TryGetDbType(DbType type, out SqlDbType? x)
+        {
+            if (!Enum.TryParse(typeof(SqlDbType), type.ToString(), out object obj))
+            {
+                x = null;
+                return false;
+            }
+
+            x = (SqlDbType)obj;
+            return true;
+        }
+    }
+
     public enum DbType {
         None, BigInt, Bit, Char, Date, DateTime, DateTime2, DateTimeOffset, Decimal, Float, Image, Int, Money, NChar, NText, NVarChar, Real, SmallDateTime, SmallInt, SmallMoney, Structured, Text, Time, Timestamp, TinyInt, Udt, UniqueIdentifier, VarBinary, VarChar, Variant, Xml
     }
