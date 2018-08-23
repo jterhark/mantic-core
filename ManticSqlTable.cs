@@ -8,6 +8,5 @@ namespace ManticFramework
     public class ManticSqlTable : Attribute
     {
         public string Table { get; set; }
-        
     }
 }
