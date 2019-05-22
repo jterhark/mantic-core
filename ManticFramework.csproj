@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Jake TerHark</Authors>
+    <Company>SATech</Company>
+    <Product />
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

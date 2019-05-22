@@ -158,14 +158,16 @@ namespace ManticFramework
 
         public async Task<IEnumerable<T>> Query<T>(string command, bool storedProcedure = false) where T : new()
         {
-            var cmd = new SqlCommand(command);
-
-            if (storedProcedure)
+            using (var cmd = new SqlCommand(command))
             {
-                cmd.CommandType = CommandType.StoredProcedure;
-            }
 
-            return await Query<T>(cmd);
+                if (storedProcedure)
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                }
+
+                return await Query<T>(cmd);
+            }
         }
 
         public async Task<IEnumerable<T>> Query<T>(SqlCommand command) where T : new()
@@ -220,37 +222,39 @@ namespace ManticFramework
                 throw new ArgumentException("Class is not registered");
             }
 
-            var cmd = new SqlCommand(_insertQueries[t.FullName]);
-
-            foreach (var entry in _columnMappings[t.FullName])
+            using (var cmd = new SqlCommand(_insertQueries[t.FullName]))
             {
-                var obj = new object();
-                var val = t.GetProperty(entry.Key).GetValue(data, null);
 
-                if (!entry.Value.SqlColumnType.HasValue)
+                foreach (var entry in _columnMappings[t.FullName])
                 {
-                    throw new ArgumentException("To use insert you must specify a sql column data type! :'(");
+                    var obj = new object();
+                    var val = t.GetProperty(entry.Key).GetValue(data, null);
+
+                    if (!entry.Value.SqlColumnType.HasValue)
+                    {
+                        throw new ArgumentException("To use insert you must specify a sql column data type! :'(");
+                    }
+
+                    if (val == null)
+                    {
+                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = DBNull.Value;
+                    }
+                    else if (entry.Value.SqlColumnLength == null)
+                    {
+                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = val;
+                    }
+                    else
+                    {
+                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value, entry.Value.SqlColumnLength.Value).Value = val;
+                    }
                 }
 
-                if (val == null)
+                using (var conn = new SqlConnection(this.ConnectionString))
                 {
-                    cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = DBNull.Value;
+                    cmd.Connection = conn;
+                    await conn.OpenAsync();
+                    await cmd.ExecuteNonQueryAsync();
                 }
-                else if (entry.Value.SqlColumnLength == null)
-                {
-                    cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = val;
-                }
-                else
-                {
-                    cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value, entry.Value.SqlColumnLength.Value).Value = val;
-                }
-            }
-
-            using (var conn = new SqlConnection(this.ConnectionString))
-            {
-                cmd.Connection = conn;
-                await conn.OpenAsync();
-                await cmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -278,22 +282,27 @@ namespace ManticFramework
                 throw new ArgumentException("Stored Procedure Not Registered");
             }
 
-            var cmd = new SqlCommand(name)
+            using (var cmd = new SqlCommand(name))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                cmd.CommandType = CommandType.StoredProcedure;
+                //var cmd = new SqlCommand(name)
+                //{
+                //    CommandType = CommandType.StoredProcedure
+                //};
 
-            var proc = _storedProcedures[name];
+                var proc = _storedProcedures[name];
 
-            if (!proc.IsNonQuery) {
-                throw new ArgumentException("Stored Procedure Marked as Having Results");
+                if (!proc.IsNonQuery)
+                {
+                    throw new ArgumentException("Stored Procedure Marked as Having Results");
+                }
+
+                FillSqlCommand(cmd, proc, parameters);
+
+                await NonQuery(cmd);
+
+                return;
             }
-
-            FillSqlCommand(cmd, proc, parameters);
-
-            await NonQuery(cmd);
-
-            return;
         }
 
         private void FillSqlCommand(SqlCommand cmd, ManticStoredProcedure proc, Dictionary<string, object> parameters) {
@@ -324,18 +333,17 @@ namespace ManticFramework
                 throw new ArgumentException("Stored Procedure Not Registered for Scalar Result");
             }
 
-            var cmd = new SqlCommand(name)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+            using (var cmd = new SqlCommand(name)) {
+                cmd.CommandType = CommandType.StoredProcedure;
 
-            FillSqlCommand(cmd, proc, parameters);
+                FillSqlCommand(cmd, proc, parameters);
 
-            return await Scalar<T>(cmd);
+                return await Scalar<T>(cmd);
+            }
 
         }
 
-        public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T:new() {
+        public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T : new() {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered!");
             }
@@ -344,17 +352,16 @@ namespace ManticFramework
                 throw new ArgumentException("Class is Not Registered!");
             }
 
-            var cmd = new SqlCommand(name)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+            using (var cmd = new SqlCommand(name)) {
+                cmd.CommandType = CommandType.StoredProcedure;
 
-            var proc = _storedProcedures[name];
+                var proc = _storedProcedures[name];
 
 
-            FillSqlCommand(cmd, proc, parameters);
+                FillSqlCommand(cmd, proc, parameters);
 
-            return await Query<T>(cmd);
+                return await Query<T>(cmd);
+            }
         }
 
         public bool IsStoredProcedureRegistered(string name) {

@@ -1231,13 +1231,13 @@
     "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "restore": {
-      "projectUniqueName": "c:\\users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\ManticFramework.csproj",
+      "projectUniqueName": "C:\\Users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\ManticFramework.csproj",
       "projectName": "ManticFramework",
-      "projectPath": "c:\\users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\ManticFramework.csproj",
+      "projectPath": "C:\\Users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\ManticFramework.csproj",
       "packagesPath": "C:\\Users\\jterha2\\.nuget\\packages\\",
-      "outputPath": "c:\\users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\obj\\",
+      "outputPath": "C:\\Users\\jterha2\\source\\repos\\PlaygroundCore\\ManticFramework\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
@@ -1251,6 +1251,8 @@
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Users\\jterha2\\Desktop\\ManticFramework": {},
+        "S:\\SATechnology\\Projects\\Development\\Nuget Packages": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
