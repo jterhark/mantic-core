@@ -1,9 +1,0 @@
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\bin\Debug\netcoreapp2.0\ManticFramework.deps.json
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\bin\Debug\netcoreapp2.0\ManticFramework.dll
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\bin\Debug\netcoreapp2.0\ManticFramework.pdb
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.csprojAssemblyReference.cache
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.csproj.CoreCompileInputs.cache
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.AssemblyInfoInputs.cache
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.AssemblyInfo.cs
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.dll
-c:\users\jterha2\source\repos\PlaygroundCore\ManticFramework\obj\Debug\netcoreapp2.0\ManticFramework.pdb
