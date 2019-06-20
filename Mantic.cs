@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace ManticFramework
 {
     public class Mantic
     {
+        //Mappings and caches
         private Dictionary<string, Dictionary<string, Mapping>> _columnMappings;
         private Dictionary<string, string> _tableMappings;
         private Dictionary<string, string> _selectQueries;
@@ -18,7 +21,6 @@ namespace ManticFramework
 
         private string ConnectionString { get; set; }
         
-
         public Mantic(string connectionString = null)
         {
             _columnMappings = new Dictionary<string, Dictionary<string, Mapping>>();
@@ -29,11 +31,16 @@ namespace ManticFramework
             ConnectionString = connectionString;
         }
 
+        //Check if a class has been Registered
         private bool IsRegistered<T>(Type t) => _columnMappings.ContainsKey(t.FullName);
 
+        //Check if a class has been Registered using ManticSqlTable
         public bool HasMappedTable<T>() => _tableMappings.ContainsKey(typeof(T).FullName);
-
-
+        
+        /*
+         * Register a class by extracting type information which includes class name, property names,
+         * and Mantic data annotation values
+         */
         public void Register<T>()
         {
             var type = typeof(T);
@@ -44,6 +51,7 @@ namespace ManticFramework
             {
                 var l = prop.GetCustomAttributes(typeof(ManticSqlColumn), true);
 
+                //Make sure any internal properties or ones that do not have the attribute do not get mapped
                 if (l.Length != 1 || !(l[0] is ManticSqlColumn attrib))
                 {
                     continue;
@@ -74,7 +82,7 @@ namespace ManticFramework
 
             _columnMappings.Add(type.FullName, map);
 
-
+            //If class has ManticSqlTable, build and cache relevant queries
             var x = type.GetCustomAttributes(typeof(ManticSqlTable), true);
             if (x.Length > 1)
             {
@@ -103,6 +111,9 @@ namespace ManticFramework
 
         }
 
+        /*
+         * Take a datatable and convert it's rows to a list of objects
+         */
         public IEnumerable<T> Fill<T>(DataTable dt) where T : new()
         {
             var type = typeof(T);
@@ -133,6 +144,42 @@ namespace ManticFramework
 
         }
 
+        public async Task<IEnumerable<T>> Fill<T>(SqlDataReader reader) where T : new()
+        {
+            var results = new List<T>();
+            var type = typeof(T);
+            if (!IsRegistered<T>(type))
+            {
+                throw new ArgumentException($"Class {type.FullName} not registered!");
+            }
+
+            var columns = reader.GetColumnSchema().Select(x => x.ColumnName).ToDictionary(x=>x, null);
+
+            while (await reader.ReadAsync())
+            {
+                var obj = new T();
+//                var props = obj.GetType().GetProperties();
+                foreach (var (key, value) in _columnMappings[type.FullName])
+                {
+                    var val = reader[value.SqlColumnName];
+                    if (columns.ContainsKey(value.SqlColumnName) && val!=DBNull.Value)
+                    {
+                        type.GetProperty(key).SetValue(obj, reader[value.SqlColumnName]);
+                    }
+                    else
+                    {
+                        type.GetProperty(key).SetValue(obj, null);
+                    }
+                }
+
+                results.Add(obj);
+
+            }
+
+            return results;
+        }
+
+        //Execute a sql command that doesn't return anything
         private async Task<int?> NonQuery(SqlCommand command) {
             if (ConnectionString == null)
             {
@@ -156,6 +203,9 @@ namespace ManticFramework
             return null;
         }
 
+        /*
+         * Execute a sql string that returns a table
+         */
         public async Task<IEnumerable<T>> Query<T>(string command, bool storedProcedure = false) where T : new()
         {
             using (var cmd = new SqlCommand(command))
@@ -170,6 +220,9 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Execute a sql command that returns a table
+         */
         public async Task<IEnumerable<T>> Query<T>(SqlCommand command) where T : new()
         {
             if (ConnectionString == null)
@@ -194,6 +247,40 @@ namespace ManticFramework
             return Fill<T>(dt);
         }
 
+        public async Task<IEnumerable<T>> QueryStream<T>(string command, bool storedProcedure = false) where T : new()
+        {
+            using (var cmd = new SqlCommand(command))
+            {
+
+                if (storedProcedure)
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                }
+
+                return await QueryStream<T>(cmd);
+            }
+        }
+
+        public async Task<IEnumerable<T>> QueryStream<T>(SqlCommand cmd) where T : new()
+        {
+            if (ConnectionString == null)
+            {
+                throw new ArgumentNullException("ConnectionString", "Connection string not set!");
+            }
+
+            if (cmd == null)
+            {
+                throw new ArgumentNullException("command", "You need a non-null sql command to query a database.");
+            }
+
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                cmd.Connection = conn;
+                await conn.OpenAsync();
+                return await Fill<T>(cmd.ExecuteReader());
+            }
+        }
+
         public async Task<IEnumerable<T>> All<T>() where T : new()
         {
             if (!IsRegistered<T>(typeof(T)))
@@ -209,6 +296,9 @@ namespace ManticFramework
             return await Query<T>(_selectQueries[typeof(T).FullName]);
         }
 
+        /*
+         * Insert an object into the database
+         */
         public async void Insert<T>(T data) where T : new()
         {
             var t = data.GetType();
@@ -258,6 +348,9 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Map stored procedure parameters and class type
+         */
         public void RegisterStoredProcedure<T>(string name, Dictionary<string, (DbType, int?)> procedure, bool isNonQuery=false, bool isScalar = false) where T:new() {
             if (IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure already registered!");
@@ -277,6 +370,9 @@ namespace ManticFramework
                 });
         }
 
+        /*
+         * Front facing interface for executing a stored procedure that does not return anything
+         */
         public async Task ExecuteNonQueryStoredProcedure(string name, Dictionary<string, object> parameters) {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
@@ -305,6 +401,9 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Create a SqlCommand using stored procedure mappings and the parameters passed externally
+         */
         private void FillSqlCommand(SqlCommand cmd, ManticStoredProcedure proc, Dictionary<string, object> parameters) {
             foreach (var entry in parameters)
             {
@@ -322,6 +421,9 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Execute a stored procedure that returns one value
+         */
         public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters){
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
@@ -343,6 +445,9 @@ namespace ManticFramework
 
         }
 
+        /*
+         * Execute stored procedure that returns a table
+         */
         public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T : new() {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered!");
@@ -364,11 +469,16 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Check if a stored procedure has been registered
+         */
         public bool IsStoredProcedureRegistered(string name) {
             return _storedProcedures.ContainsKey(name);
         }
 
-
+        /*
+         * Internal method used to execute scalar Sql Commands
+         */
         private async Task<T> Scalar<T>(SqlCommand cmd)
         {
             using (var conn = new SqlConnection(ConnectionString))
@@ -381,6 +491,9 @@ namespace ManticFramework
             }
         }
 
+        /*
+         * Internal method to help convert objects to the user defined types
+         */
         private static T ConvertTo<T>(object obj)
         {
             if (obj == System.DBNull.Value)

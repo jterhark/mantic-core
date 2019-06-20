@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
@@ -6,7 +6,8 @@
     <Authors>Jake TerHark</Authors>
     <Company>SATech</Company>
     <Product />
-    <Version>1.0.1</Version>
+    <Version>1.1.3</Version>
+    <PackageVersion>1.1.4</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
