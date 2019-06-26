@@ -13,13 +13,13 @@ namespace ManticFramework
     public class Mantic
     {
         //Mappings and caches
-        private Dictionary<string, Dictionary<string, Mapping>> _columnMappings;
-        private Dictionary<string, string> _tableMappings;
-        private Dictionary<string, string> _selectQueries;
-        private Dictionary<string, string> _insertQueries;
-        private Dictionary<string, ManticStoredProcedure> _storedProcedures;
+        private readonly Dictionary<string, Dictionary<string, Mapping>> _columnMappings;
+        private readonly Dictionary<string, string> _tableMappings;
+        private readonly Dictionary<string, string> _selectQueries;
+        private readonly Dictionary<string, string> _insertQueries;
+        private readonly Dictionary<string, ManticStoredProcedure> _storedProcedures;
 
-        private string ConnectionString { get; set; }
+        private string ConnectionString { get; }
         
         public Mantic(string connectionString = null)
         {
@@ -32,7 +32,7 @@ namespace ManticFramework
         }
 
         //Check if a class has been Registered
-        private bool IsRegistered<T>(Type t) => _columnMappings.ContainsKey(t.FullName);
+        private bool IsRegistered(Type t) => _columnMappings.ContainsKey(t.FullName);
 
         //Check if a class has been Registered using ManticSqlTable
         public bool HasMappedTable<T>() => _tableMappings.ContainsKey(typeof(T).FullName);
@@ -65,16 +65,15 @@ namespace ManticFramework
                     throw new ArgumentException("Properties having the SqlColumnAttribute must be nullable!");
                 }
 
-                var propName = $"{type.FullName}.{prop.Name}";
+//                var propName = $"{type.FullName}.{prop.Name}";
 
-                SqlDbType? s;
-                attrib.TryGetDbType(out s);
+                attrib.TryGetDbType(out var s);
 
                 map.Add(prop.Name, new Mapping
                 {
-                    PropertyType = propType,
+//                    PropertyType = propType,
                     SqlColumnName = attrib.Name,
-                    SqlColumnType = s ?? null,
+                    SqlColumnType = s,
                     SqlColumnLength = attrib.ColumnLength,
                     IgnoreOnInsert = attrib.IgnoreOnInsert
                 });
@@ -118,7 +117,7 @@ namespace ManticFramework
         {
             var type = typeof(T);
 
-            if (!IsRegistered<T>(type))
+            if (!IsRegistered(type))
             {
                 throw new ArgumentException("Class not registered!");
             }
@@ -126,16 +125,16 @@ namespace ManticFramework
             foreach (DataRow row in dt.Rows)
             {
                 var obj = new T();
-                var props = obj.GetType().GetProperties();
-                foreach (var x in _columnMappings[type.FullName])
+//                var props = obj.GetType().GetProperties();
+                foreach (var (key, value) in _columnMappings[type.FullName])
                 {
-                    if (dt.Columns.Contains(x.Value.SqlColumnName))
+                    if (dt.Columns.Contains(value.SqlColumnName))
                     {
-                        type.GetProperty(x.Key).SetValue(obj, row[x.Value.SqlColumnName] != DBNull.Value ? row[x.Value.SqlColumnName] : null);
+                        type.GetProperty(key).SetValue(obj, row[value.SqlColumnName] != DBNull.Value ? row[value.SqlColumnName] : null);
                     }
                     else
                     {
-                        type.GetProperty(x.Key).SetValue(obj, null);
+                        type.GetProperty(key).SetValue(obj, null);
                     }
                 }
 
@@ -148,7 +147,7 @@ namespace ManticFramework
         {
             var results = new List<T>();
             var type = typeof(T);
-            if (!IsRegistered<T>(type))
+            if (!IsRegistered(type))
             {
                 throw new ArgumentException($"Class {type.FullName} not registered!");
             }
@@ -180,18 +179,18 @@ namespace ManticFramework
         }
 
         //Execute a sql command that doesn't return anything
-        private async Task<int?> NonQuery(SqlCommand command) {
+        public async Task NonQuery(SqlCommand command) {
             if (ConnectionString == null)
             {
-                throw new ArgumentNullException("ConnectionString", "Connection string not set!");
+                throw new Exception("Connection string not set!");
             }
 
             if (command == null)
             {
-                throw new ArgumentNullException("command", "You need a non-null sql command to query a database.");
+                throw new ArgumentNullException(nameof(command), "You need a non-null sql command to query a database.");
             }
 
-            var dt = new DataTable();
+            //var dt = new DataTable();
 
             using (var conn = new SqlConnection(ConnectionString))
             {
@@ -200,7 +199,7 @@ namespace ManticFramework
                 await command.ExecuteNonQueryAsync();
             }
 
-            return null;
+//            return null;
         }
 
         /*
@@ -227,12 +226,12 @@ namespace ManticFramework
         {
             if (ConnectionString == null)
             {
-                throw new ArgumentNullException("ConnectionString", "Connection string not set!");
+                throw new Exception("Connection string not set!");
             }
 
             if (command == null)
             {
-                throw new ArgumentNullException("command", "You need a non-null sql command to query a database.");
+                throw new ArgumentNullException(nameof(command), "You need a non-null sql command to query a database.");
             }
 
             var dt = new DataTable();
@@ -265,12 +264,12 @@ namespace ManticFramework
         {
             if (ConnectionString == null)
             {
-                throw new ArgumentNullException("ConnectionString", "Connection string not set!");
+                throw new Exception("Connection string not set!");
             }
 
             if (cmd == null)
             {
-                throw new ArgumentNullException("command", "You need a non-null sql command to query a database.");
+                throw new ArgumentNullException(nameof(cmd), "You need a non-null sql command to query a database.");
             }
 
             using (var conn = new SqlConnection(ConnectionString))
@@ -283,7 +282,7 @@ namespace ManticFramework
 
         public async Task<IEnumerable<T>> All<T>() where T : new()
         {
-            if (!IsRegistered<T>(typeof(T)))
+            if (!IsRegistered(typeof(T)))
             {
                 throw new ArgumentException("Class is not registered!");
             }
@@ -299,7 +298,7 @@ namespace ManticFramework
         /*
          * Insert an object into the database
          */
-        public async void Insert<T>(T data) where T : new()
+        public async Task Insert<T>(T data) where T : new()
         {
             var t = data.GetType();
 
@@ -307,7 +306,7 @@ namespace ManticFramework
             {
                 throw new ArgumentException("Class has no mapped table. Use SqlTable.");
             }
-            if (!IsRegistered<T>(t))
+            if (!IsRegistered(t))
             {
                 throw new ArgumentException("Class is not registered");
             }
@@ -315,31 +314,31 @@ namespace ManticFramework
             using (var cmd = new SqlCommand(_insertQueries[t.FullName]))
             {
 
-                foreach (var entry in _columnMappings[t.FullName])
+                foreach (var (key, value) in _columnMappings[t.FullName])
                 {
-                    var obj = new object();
-                    var val = t.GetProperty(entry.Key).GetValue(data, null);
+//                    var obj = new object();
+                    var val = t.GetProperty(key).GetValue(data, null);
 
-                    if (!entry.Value.SqlColumnType.HasValue)
+                    if (!value.SqlColumnType.HasValue)
                     {
                         throw new ArgumentException("To use insert you must specify a sql column data type! :'(");
                     }
 
                     if (val == null)
                     {
-                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = DBNull.Value;
+                        cmd.Parameters.Add($"@{value.SqlColumnName}", value.SqlColumnType.Value).Value = DBNull.Value;
                     }
-                    else if (entry.Value.SqlColumnLength == null)
+                    else if (value.SqlColumnLength == null)
                     {
-                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value).Value = val;
+                        cmd.Parameters.Add($"@{value.SqlColumnName}", value.SqlColumnType.Value).Value = val;
                     }
                     else
                     {
-                        cmd.Parameters.Add($"@{entry.Value.SqlColumnName}", entry.Value.SqlColumnType.Value, entry.Value.SqlColumnLength.Value).Value = val;
+                        cmd.Parameters.Add($"@{value.SqlColumnName}", value.SqlColumnType.Value, value.SqlColumnLength.Value).Value = val;
                     }
                 }
 
-                using (var conn = new SqlConnection(this.ConnectionString))
+                using (var conn = new SqlConnection(ConnectionString))
                 {
                     cmd.Connection = conn;
                     await conn.OpenAsync();
@@ -357,14 +356,14 @@ namespace ManticFramework
             }
 
             var t = typeof(T);
-            if (!this.IsRegistered<T>(t)) {
-                this.Register<T>();
+            if (!IsRegistered(t)) {
+                Register<T>();
             }
 
-            this._storedProcedures.Add(name,
+            _storedProcedures.Add(name,
                 new ManticStoredProcedure {
                     Mappings = procedure,
-                    ReturnType = t.FullName,
+//                    ReturnType = t.FullName,
                     IsNonQuery = isNonQuery,
                     IsScalar = isScalar
                 });
@@ -373,7 +372,7 @@ namespace ManticFramework
         /*
          * Front facing interface for executing a stored procedure that does not return anything
          */
-        public async Task ExecuteNonQueryStoredProcedure(string name, Dictionary<string, object> parameters) {
+        public async Task ExecuteNonQueryStoredProcedure(string name, Dictionary<string, object> parameters = null) {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
             }
@@ -396,35 +395,60 @@ namespace ManticFramework
                 FillSqlCommand(cmd, proc, parameters);
 
                 await NonQuery(cmd);
-
-                return;
             }
         }
 
         /*
          * Create a SqlCommand using stored procedure mappings and the parameters passed externally
          */
-        private void FillSqlCommand(SqlCommand cmd, ManticStoredProcedure proc, Dictionary<string, object> parameters) {
-            foreach (var entry in parameters)
+        private static void FillSqlCommand(SqlCommand cmd, ManticStoredProcedure proc, Dictionary<string, object> parameters)
+        {
+            parameters = parameters ?? new Dictionary<string, object>();
+            foreach (var (key, (dbType, length)) in proc.Mappings)
             {
-                var mapping = proc.Mappings[entry.Key];
-                SqlDbType? t;
-                Util.TryGetDbType(mapping.Item1, out t);
-                if (mapping.Item2.HasValue)
+                Util.TryGetDbType(dbType, out var t);
+                if (t == null)
                 {
-                    cmd.Parameters.Add(entry.Key, t.Value, mapping.Item2.Value).Value = entry.Value;
+                    throw new Exception("Cannot create Sql Command. Database type conversion failed.");
+                }
+
+                if (parameters.ContainsKey(key))
+                {
+                    if (length.HasValue)
+                    {
+                        cmd.Parameters.Add(key, t.Value, length.Value).Value = parameters[key]??DBNull.Value ;
+                    }
+                    else
+                    {
+                        cmd.Parameters.Add(key, t.Value).Value = parameters[key] ?? DBNull.Value;
+                    }
                 }
                 else
                 {
-                    cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
+                    cmd.Parameters.Add(key, t.Value).Value = DBNull.Value;
                 }
             }
+
+//            foreach (var entry in parameters)
+//            {
+//                var mapping = proc.Mappings[entry.Key];
+//                SqlDbType? t;
+//                Util.TryGetDbType(mapping.Item1, out t);
+//                if (mapping.Item2.HasValue)
+//                {
+//                    cmd.Parameters.Add(entry.Key, t.Value, mapping.Item2.Value).Value = entry.Value;
+//                }
+//                else
+//                {
+//                    cmd.Parameters.Add(entry.Key, t.Value).Value = entry.Value;
+//                }
+//            }
         }
 
         /*
          * Execute a stored procedure that returns one value
          */
-        public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters){
+        public async Task<T> ExecuteScalarStoredProcedure<T>(string name, Dictionary<string, object> parameters = null){
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered");
             }
@@ -448,12 +472,12 @@ namespace ManticFramework
         /*
          * Execute stored procedure that returns a table
          */
-        public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters) where T : new() {
+        public async Task<IEnumerable<T>> ExecuteStoredProcedure<T>(string name, Dictionary<string, object> parameters = null) where T : new() {
             if (!IsStoredProcedureRegistered(name)) {
                 throw new ArgumentException("Stored Procedure Not Registered!");
             }
 
-            if (!IsRegistered<T>(typeof(T))) {
+            if (!IsRegistered(typeof(T))) {
                 throw new ArgumentException("Class is Not Registered!");
             }
 
@@ -496,7 +520,7 @@ namespace ManticFramework
          */
         private static T ConvertTo<T>(object obj)
         {
-            if (obj == System.DBNull.Value)
+            if (obj == DBNull.Value)
             {
                 return default(T);
             }
@@ -515,8 +539,6 @@ namespace ManticFramework
     internal class ManticStoredProcedure {
         public Dictionary<string, (DbType, int?)> Mappings { get; set; }
 
-        public string ReturnType { get; set; }
-
         public bool IsNonQuery { get; set; }
 
         public bool IsScalar { get; set; }
@@ -525,8 +547,6 @@ namespace ManticFramework
 
     internal class Mapping
     {
-        public Type PropertyType { get; set; }
-
         public string SqlColumnName { get; set; }
 
         public SqlDbType? SqlColumnType { get; set; }
