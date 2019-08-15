@@ -369,6 +369,38 @@ namespace ManticFramework
                 });
         }
 
+        public void RegisterNonQueryStoredProcedure(string name, Dictionary<string, (DbType, int?)> procedure)
+        {
+            if (IsStoredProcedureRegistered(name))
+            {
+                throw new ArgumentException("Stored Procedure Already Registered", nameof(name));
+            }
+            
+            _storedProcedures.Add(name,
+                new ManticStoredProcedure
+                {
+                    Mappings = procedure,
+                    IsNonQuery = true,
+                    IsScalar = false
+                });
+        }
+
+        public void RegisterScalarStoredProcedure(string name, Dictionary<string, (DbType, int?)> procedure)
+        {
+            if (IsStoredProcedureRegistered(name))
+            {
+                throw new ArgumentException("Stored Procedure Already Registered", nameof(name));
+            }
+            
+            _storedProcedures.Add(name,
+                new ManticStoredProcedure
+                {
+                    Mappings = procedure,
+                    IsNonQuery = false,
+                    IsScalar = true
+                });
+        }
+
         /*
          * Front facing interface for executing a stored procedure that does not return anything
          */
