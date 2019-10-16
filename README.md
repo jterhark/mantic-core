@@ -1,11 +1,11 @@
 # Mantic Framework
-[Setting up your data model](/wiki/Setup-Data-Model)<br/>
+[Setting up your data model](wiki/Setup-Data-Model.md)<br/>
 
-[Examples](Examples)<br/>
+[Examples](wiki/Examples.md)<br/>
 
-[Full API Docs](API)<br/>
+[Full API Docs](wiki/API.md)<br/>
 
-[Development Guidlines](Development-Guidlines)
+[Development Guidlines](wiki/Development-Guidlines.md)
 
 # Problem
 While using ADO.NET is the most performant solution possible, it results in some pretty nasty looking code.
@@ -24,14 +24,14 @@ If performance is key, then avoid Mantic. If working with Datasets larger than 5
 
 # Benchmarks
 
-![Select 608 Rows](images/select_608.png)
+![Select 608 Rows](wiki/images/select_608.png)
 
-![Select 642686 Rows](images/select_642686.png)
+![Select 642686 Rows](wiki/images/select_642686.png)
 
-![Insert](images/insert.png)
+![Insert](wiki/images/insert.png)
 
-![Query Stored Procedure](images/query_proc.png)
+![Query Stored Procedure](wiki/images/query_proc.png)
 
-![Scalar Stored Procedure](images/scalar_proc.png) 
+![Scalar Stored Procedure](wiki/images/scalar_proc.png) 
 
-[Download Raw Data](data/mantic.xlsx)
+[Download Raw Data](wiki/data/mantic.xlsx)
