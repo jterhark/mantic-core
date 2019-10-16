@@ -13,7 +13,7 @@ namespace ManticFramework.Tests
         private Mantic _mantic;
 
         private const string ConnectionString =
-            "Data Source=sa-vm-appdev;Initial Catalog=divvy;Integrated Security=True";
+            "Data Source=sa-vm-webdev;Initial Catalog=divvy;Integrated Security=True";
 
         [SetUp]
         public void Setup()
