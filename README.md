@@ -1,5 +1,5 @@
 # Mantic Framework
-[Setting up your data model](Setup-Data-Model)<br/>
+[Setting up your data model](/wiki/Setup-Data-Model)<br/>
 
 [Examples](Examples)<br/>
 
